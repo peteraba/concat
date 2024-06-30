@@ -6,10 +6,11 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 func main() {
-	workdir, dryRun := getArgs()
+	workdir, dryRun, force := getArgs(os.Args)
 
 	fileParts := findParts(workdir)
 	for target, parts := range fileParts {
@@ -21,32 +22,60 @@ func main() {
 			continue
 		}
 
-		processFileParts(target, parts, dryRun)
+		err = validateTarget(target)
+		if err != nil {
+			fmt.Println(err)
+			if force {
+				target = findNewTarget(target)
+			} else {
+				continue
+			}
+		}
+
+		processFileParts(target, parts, dryRun, force)
 	}
 }
 
-func getArgs() (string, bool) {
+func getArgs(args []string) (string, bool, bool) {
+	fmt.Println(args)
+
 	workdir, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
 	dryRun := false
+	force := false
 
-	for i := 1; i < len(os.Args); i++ {
-		if os.Args[i] == "-d" || os.Args[i] == "--dry-run" {
+	for i := 1; i < len(args); i++ {
+		if args[i] == "-f" || args[i] == "--force" {
+			force = true
+		} else if args[i] == "-d" || args[i] == "--dry-run" {
 			dryRun = true
+		} else if len(args[i]) > 2 && args[i][:2] == "--" {
+			panic(fmt.Sprintf("unknown argument: '%s'", args[i]))
 		}
 	}
 
-	if len(os.Args) > 1 {
-		lastArg := os.Args[len(os.Args)-1]
-		if lastArg != "-d" && lastArg != "--dry-run" {
+	if len(args) > 1 {
+		lastArg := args[len(os.Args)-1]
+		if lastArg != "-d" && lastArg != "--dry-run" && lastArg != "-f" && lastArg != "--force" {
 			workdir = lastArg
 		}
 	}
 
-	return workdir, dryRun
+	expectedArgCount := 2
+	if dryRun {
+		expectedArgCount++
+	}
+	if force {
+		expectedArgCount++
+	}
+	if len(args) > expectedArgCount {
+		panic("too many arguments")
+	}
+
+	return workdir, dryRun, force
 }
 
 func validateFileParts(target string, parts []string) error {
@@ -57,6 +86,10 @@ func validateFileParts(target string, parts []string) error {
 		}
 	}
 
+	return nil
+}
+
+func validateTarget(target string) error {
 	_, err := os.Stat(target)
 	if err == nil {
 		return fmt.Errorf("file '%s' already exists", target)
@@ -68,7 +101,30 @@ func validateFileParts(target string, parts []string) error {
 	return nil
 }
 
-func processFileParts(target string, parts []string, dryRun bool) {
+func findNewTarget(target string) string {
+	parts := strings.Split(target, ".")
+	ext := ""
+	targetBase := target
+
+	if len(parts) > 1 {
+		ext = "." + parts[len(parts)-1]
+		targetBase = strings.Join(parts[:len(parts)-1], ".")
+	}
+
+	newTarget := ""
+	for i := 1; i < 1000; i++ {
+		newTarget = targetBase + fmt.Sprintf("-%03d", i) + ext
+
+		_, err := os.Stat(newTarget)
+		if err != nil && errors.Is(err, os.ErrNotExist) {
+			return newTarget
+		}
+	}
+
+	panic(fmt.Errorf("failed to find new target file name, target: '%s'", target))
+}
+
+func processFileParts(target string, parts []string, dryRun, force bool) {
 	if dryRun {
 		return
 	}
@@ -78,6 +134,15 @@ func processFileParts(target string, parts []string, dryRun bool) {
 		fmt.Println(err)
 	} else {
 		fmt.Println("file created:", target)
+	}
+
+	for _, part := range parts {
+		err = os.Remove(part)
+		if err != nil {
+			fmt.Println("failed to remove file:", err)
+		} else {
+			fmt.Println("file removed:", part)
+		}
 	}
 }
 
