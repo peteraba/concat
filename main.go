@@ -39,9 +39,11 @@ func getArgs() (string, bool) {
 		}
 	}
 
-	workdir = os.Args[len(os.Args)-1]
-	if workdir == "-d" || workdir == "--dry-run" {
-		workdir = ""
+	if len(os.Args) > 1 {
+		lastArg := os.Args[len(os.Args)-1]
+		if lastArg != "-d" && lastArg != "--dry-run" {
+			workdir = lastArg
+		}
 	}
 
 	return workdir, dryRun
@@ -53,6 +55,14 @@ func validateFileParts(target string, parts []string) error {
 		if parts[i] != expected {
 			return fmt.Errorf("wrong file name found. expected: '%s', found: '%s', file number: #%d", expected, parts[i], i+1)
 		}
+	}
+
+	_, err := os.Stat(target)
+	if err == nil {
+		return fmt.Errorf("file '%s' already exists", target)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to stat file '%s': %w", target, err)
 	}
 
 	return nil
@@ -104,14 +114,6 @@ func findParts(dir string) map[string][]string {
 }
 
 func writeFile(target string, parts []string) error {
-	_, err := os.Stat(target)
-	if err == nil {
-		return fmt.Errorf("file '%s' already exists", target)
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("failed to stat file '%s': %w", target, err)
-	}
-
 	f, err := os.Create(target)
 	if err != nil {
 		return fmt.Errorf("failed to create file '%s': %w", target, err)
