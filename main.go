@@ -37,8 +37,6 @@ func main() {
 }
 
 func getArgs(args []string) (string, bool, bool) {
-	fmt.Println(args)
-
 	workdir, err := os.Getwd()
 	if err != nil {
 		panic(err)

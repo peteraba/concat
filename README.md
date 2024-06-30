@@ -33,6 +33,12 @@ wrong file name found. expected: 'missing part.001', found: 'missing part.002', 
 ```
 $ concat ~/Projects/concat -f
 file 'file exists.txt' already exists
+file created: file exists-001.txt
+file removed: file exists.txt.001
+file removed: file exists.txt.002
 file created: file one
+file removed: file one.001
+file removed: file one.002
+file removed: file one.003
 wrong file name found. expected: 'missing part.001', found: 'missing part.002', file number: #1
 ```
