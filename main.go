@@ -7,9 +7,12 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 func main() {
+	t0 := time.Now()
+
 	workdir, dryRun, force := getArgs(os.Args)
 
 	fileParts := findParts(workdir)
@@ -34,6 +37,8 @@ func main() {
 
 		processFileParts(target, parts, dryRun, force)
 	}
+
+	fmt.Printf("%d files processed in %s\n", len(fileParts), time.Since(t0))
 }
 
 func getArgs(args []string) (string, bool, bool) {
